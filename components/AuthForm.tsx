@@ -10,16 +10,21 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { toast } from "sonner";
 import FormField from "./FormField";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { signIn, signUp } from "@/lib/actions/auth.action";
+import { auth } from "@/firebase/client";
+import { useRouter } from 'next/navigation'
 
 
 const authFormSchema = (type: FormType) => {
-    return z.object({
-        name: type === "sign-up" ? z.string().min(3) : z.string().optional(),
-        email: z.string().email(),
-        password: z.string().min(3),
-    }); 
-  }
+  return z.object({
+    name: type === "sign-up" ? z.string().min(3) : z.string().optional(),
+    email: z.string().email(),
+    password: z.string().min(3),
+  });
+};
 const AuthForm = ({ type }: { type: FormType }) => {
+    const router = useRouter()
   const formSchema = authFormSchema(type);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -31,18 +36,49 @@ const AuthForm = ({ type }: { type: FormType }) => {
   });
 
   // 2. Define a submit handler.
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-        if(type === "sign-up") {
-            // Handle sign-up logic
-            console.log("Signing up with values:", values);
-        } else {
-            // Handle sign-in logic
-            console.log("Signing in with values:", values);
+      if (type === "sign-up") {
+
+        // Handle sign-up logic
+        const { name, email, password } = values;
+
+        const userCredentials = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+        const result = await signUp({
+          uid: userCredentials.user.uid,
+          name: name!,
+          email,
+          password,
+        });
+        if (!result?.success) {
+          toast.error(result?.message);
+          return;
         }
+        toast.success("Sign in successfully");
+        router.push("/sign-in");
+      } else {
+
+        // Handle sign-in logic
+        const {email, password} = values;
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const idToken = await userCredential.user.getIdToken();
+        if (!idToken) {
+          toast.error("Failed in failed");
+          return;
+        }
+        await signIn({
+          email, idToken
+        });
+        toast.success("Logged in successfully");
+        router.push("/");
+      }
     } catch (error) {
-        console.error("Error submitting form:", error);
-        toast.error(`There was an Error: ${error}`);
+      console.error("Error submitting form:", error);
+      toast.error(`There was an Error: ${error}`);
     }
   }
 
@@ -62,13 +98,15 @@ const AuthForm = ({ type }: { type: FormType }) => {
             onSubmit={form.handleSubmit(onSubmit)}
             className="w-full space-y-6 mt-4 form"
           >
-            {!isSignIn && <FormField
-              control={form.control}
-              name="name"
-              label="UserName"
-              placeholder="Enter your username"
+            {!isSignIn && (
+              <FormField
+                control={form.control}
+                name="name"
+                label="UserName"
+                placeholder="Enter your username"
                 type="text"
-            />}
+              />
+            )}
             <FormField
               control={form.control}
               name="email"
