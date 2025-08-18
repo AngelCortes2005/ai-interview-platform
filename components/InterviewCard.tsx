@@ -4,8 +4,10 @@ import Image from "next/image";
 import { getRandomInterviewCover } from "@/lib/utils";
 import Link from "next/link";
 import DisplayTechIcons from "./DisplayTechIcons";
+import { id } from "zod/v4/locales";
 
 const InterviewCard = ({
+  id,
   interviewId,
   UserId,
   role,
@@ -61,8 +63,8 @@ const InterviewCard = ({
             <Link 
               href={
                 feedback
-                  ? `/interview/${interviewId}/feedback`
-                  : `/interview/${interviewId}`
+                  ? `/interview/${id}/feedback`
+                  : `/interview/${id}`
               }>
               {feedback ? "Check Feedback" : "View Interview"}
             </Link>
